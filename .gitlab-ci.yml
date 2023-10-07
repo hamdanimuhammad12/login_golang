@@ -1,0 +1,95 @@
+stages:
+  - build
+  - deploy
+build:
+#  image: dedikusn/golang-1.16-alpine-git
+  stage: build
+  script:
+    - GOARCH=amd64 GOOS=linux go mod vendor
+    - GOARCH=amd64 GOOS=linux go build -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/snapin-api
+  artifacts:
+    paths:
+      - snapin-api
+
+deploy_hotfix:
+  only:
+    - hotfix
+  image: kroniak/ssh-client
+  stage: deploy
+  environment:
+    name: hotfix
+    url: $CI_ENVIRONMENT_URL
+  script:
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod -R 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - scp -P$SSH_PORT -r ./snapin-api $SSH_USER@$SSH_HOST:~/temp/
+    - scp -P$SSH_PORT -r $env $SSH_USER@$SSH_HOST:$DEPLOY_DIR/gifnoc.yml
+    - ssh -p$SSH_PORT $SSH_USER@$SSH_HOST "sudo systemctl stop snapin-user-api && cp ~/temp/snapin-api $DEPLOY_DIR && sudo systemctl start snapin-user-api && rm -rf ~/temp/snapin-api"
+    - export gitlog=$(git log -20 --pretty=format:%s)
+    - ssh -p$SSH_PORT $SSH_USER@$SSH_HOST "/usr/local/bin/noti -t 'PUSH BRANCH $CI_COMMIT_BRANCH $CI_PROJECT_TITLE oleh $GITLAB_USER_NAME !! Last GIT= $gitlog' -g -f /usr/local/etc/noti.yaml"
+
+deploy_dev-fitur:
+  only:
+    - dev-fitur
+  image: kroniak/ssh-client
+  stage: deploy
+  environment:
+    name: dev-fitur
+    url: $CI_ENVIRONMENT_URL
+  script:
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod -R 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - scp -P$SSH_PORT -r ./snapin-api $SSH_USER@$SSH_HOST:~/temp/
+    - scp -P$SSH_PORT -r $env $SSH_USER@$SSH_HOST:$DEPLOY_DIR/gifnoc.yml
+    - ssh -p$SSH_PORT $SSH_USER@$SSH_HOST "sudo systemctl stop snapin-user-api-fitur && cp ~/temp/snapin-api $DEPLOY_DIR && sudo systemctl start snapin-user-api-fitur && rm -rf ~/temp/snapin-api"
+    - export gitlog=$(git log -20 --pretty=format:%s)
+    - ssh -p$SSH_PORT $SSH_USER@$SSH_HOST "/usr/local/bin/noti -t 'PUSH BRANCH $CI_COMMIT_BRANCH $CI_PROJECT_TITLE oleh $GITLAB_USER_NAME !! Last GIT= $gitlog' -g -f /usr/local/etc/noti.yaml"
+
+deploy_staging:
+  only:
+    - staging
+  image: kroniak/ssh-client
+  stage: deploy
+  environment:
+    name: staging
+    url: $CI_ENVIRONMENT_URL
+  script:
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod -R 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - scp -P$SSH_PORT -r ./snapin-api $SSH_USER@$SSH_HOST:~/temp/
+    - scp -P$SSH_PORT -r $env $SSH_USER@$SSH_HOST:$DEPLOY_DIR/gifnoc.yml
+    - ssh -p$SSH_PORT $SSH_USER@$SSH_HOST "sudo systemctl stop snapin-user-api-staging && cp ~/temp/snapin-api $DEPLOY_DIR && sudo systemctl start snapin-user-api-staging && rm -rf ~/temp/snapin-api"
+    - export gitlog=$(git log -20 --pretty=format:%s)
+    - ssh -p$SSH_PORT $SSH_USER@$SSH_HOST "/usr/local/bin/noti -t 'PUSH BRANCH $CI_COMMIT_BRANCH $CI_PROJECT_TITLE oleh $GITLAB_USER_NAME !! Last GIT= $gitlog' -g -f /usr/local/etc/noti.yaml"
+
+deploy_production:
+  only:
+    - main
+  image: kroniak/ssh-client
+  stage: deploy
+  environment:
+    name: production
+    url: $CI_ENVIRONMENT_URL
+  when: manual
+  script:
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod -R 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - scp -P$SSH_PORT -r ./snapin-api $SSH_USER@$SSH_HOST:~/temp/
+#    - ssh -p$SSH_PORT $SSH_USER@$SSH_HOST "cd $DEPLOY_DIR && rm -rf assets views background.png qrcode.png semarket.png semarket1.png"
+#    - scp -P$SSH_PORT -r ./assets ./views ./background.png ./qrcode.png ./semarket.png ./semarket1.png $SSH_USER@$SSH_HOST:$DEPLOY_DIR
+    - scp -P$SSH_PORT -r $env $SSH_USER@$SSH_HOST:$DEPLOY_DIR/gifnoc.yml
+    - ssh -p$SSH_PORT $SSH_USER@$SSH_HOST "sudo systemctl stop snapin-user-api && cp ~/temp/snapin-api $DEPLOY_DIR && sudo systemctl start snapin-user-api && rm -rf ~/temp/snapin-api"
+    - export gitlog=$(git log -20 --pretty=format:%s)
+    - ssh -p$SSH_PORT $SSH_USER@$SSH_HOST "/usr/local/bin/noti -t 'PUSH BRANCH $CI_COMMIT_BRANCH $CI_PROJECT_TITLE oleh $GITLAB_USER_NAME !! Last GIT= $gitlog' -g -f /usr/local/etc/noti.yaml"

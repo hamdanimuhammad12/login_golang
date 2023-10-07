@@ -1,0 +1,113 @@
+package routes___
+
+import (
+	"fmt"
+	"log"
+	"snapin-user-api/config"
+	"snapin-user-api/controllers"
+	m "snapin-user-api/middleware"
+	"snapin-user-api/models"
+
+	"gorm.io/gorm"
+
+	jwt "github.com/appleboy/gin-jwt/v2"
+
+	"github.com/gin-gonic/gin"
+)
+
+// var (
+// 	varconf        config.Configurations =
+// 	db             *gorm.DB                   = config.ConnectDB(varconf)
+// 	userModels     models.UserModels          = models.NewUserModels(db)
+// 	userController controllers.UserController = controllers.NewUserController(userModels)
+// )
+
+func SetupRoutes(conf config.Configurations) *gin.Engine {
+
+	r := gin.Default()
+
+	var varconf config.Configurations = conf
+	var db *gorm.DB = config.ConnectDB(varconf)
+
+	// user
+	var userModels models.UserModels = models.NewUserModels(db)
+	var otpModels models.OtpModels = models.NewOtpModels(db)
+	var companyModels models.CompaniesModels = models.NewCompaniesModels(db)
+	var userController controllers.UserController = controllers.NewUserController(userModels, otpModels, companyModels)
+
+	//menu
+	var menuModels models.MenuModels = models.NewMenuModels(db)
+	var roleModels models.RolesModels = models.NewRolesModels(db)
+	var menuController controllers.MenuController = controllers.NewMenuController(menuModels, roleModels)
+
+	//team
+	var teamModels models.TeamModels = models.NewTeamModels(db)
+	var teamController controllers.TeamController = controllers.NewTeamController(teamModels)
+
+	//notif
+	var notifModels models.NotifModels = models.NewNotifModels(db)
+	var notifController controllers.NotifController = controllers.NewNotifController(notifModels)
+
+	fmt.Println(notifController)
+	authMiddleware := m.SetupMiddleware(db)
+	fmt.Println("authMiddleware------>>", authMiddleware)
+	// When you use jwt.New(), the function is already automatically called for checking,
+	// which means you don't need to call it again.
+	errInit := authMiddleware.MiddlewareInit()
+
+	if errInit != nil {
+		log.Fatal("authMiddleware.MiddlewareInit() Error:" + errInit.Error())
+	}
+
+	r.NoRoute(authMiddleware.MiddlewareFunc(), func(c *gin.Context) {
+		claims := jwt.ExtractClaims(c)
+		log.Printf("NoRoute claims: %#v\n", claims)
+		c.JSON(404, gin.H{"code": "PAGE_NOT_FOUND", "message": "Page not found"})
+	})
+
+	// public endpoint
+	r.GET("/", func(c *gin.Context) { c.JSON(404, gin.H{"code": 200, "message": "Wellcome to Snapin New"}) })
+	r.POST("/login", authMiddleware.LoginHandler)
+	r.POST("/register", userController.Register)
+	r.POST("/createdemourl", userController.CreateDemoUrl)
+	r.POST("/otp", userController.OtpRequest)
+	r.POST("/otpcheck", userController.OtpCheck)
+
+	r.GET("/user/", userController.UserList)
+	r.GET("/user/:id", userController.UserByIDHandler)
+	r.GET("/user/profile", userController.Profile)
+	r.POST("/user/create", userController.UserCreate)
+	r.PUT("/user/update", userController.UserUpdate)
+	r.DELETE("/user/delete", userController.UserList)
+	r.POST("/user/subscription", userController.UserList)
+
+	// roles
+	r.GET("/user/roles", userController.RolesList)
+	r.POST("/user/roleusercreate", userController.UserRolesAdd)
+
+	// company
+	r.GET("/user/company", userController.UserCompany)
+	r.POST("/user/companyupdate", userController.UserCompanyUpdate)
+
+	// menu
+	r.GET("/menu", menuController.MenuList)
+
+	//team
+	r.GET("/team", teamController.TeamList)
+	r.GET("/team/:id", teamController.TeamList)
+	r.POST("/team/create", teamController.TeamCreate)
+	r.PUT("/team/update", teamController.TeamUpdate)
+	r.DELETE("/team/destroy/:id", teamController.TeamDestroy)
+
+	// user team
+	r.POST("/team/teamusercreate", teamController.TeamUserCreate)
+	r.DELETE("/team/teamuserdestroy/:teamuserid", teamController.TeamUserDestroy)
+
+	// notification
+	r.GET("/notif", teamController.TeamUserCreate)
+	r.GET("/notif/:id", teamController.TeamUserCreate)
+	r.POST("/notifcreate", teamController.TeamUserCreate)
+	r.POST("/notifread", teamController.TeamUserCreate)
+
+	return r
+}
