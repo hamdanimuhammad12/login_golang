@@ -1,7 +1,35 @@
-# login_golang
+# Install go di ubuntu
+
+  sudo apt update
+
+  sudo apt install golang
+
+  go version
+
+  export GOPATH=$HOME/go
+  export PATH=$PATH:$GOPATH/bin
+
+  mkdir -p $HOME/go/{bin,pkg,src}
+
+
+# Create file hello.go
+
+  package main
+  
+  import "fmt"
+  
+  func main() {
+      fmt.Println("Hello, World!")
+  }
+
+# Run go
+
+go run hello.go
+
+# Login_golang
 Api login dan regiater dengan language golang dan database postgres
 
-# tambahkan create file gifnoc.yml
+# Tambahkan create file gifnoc.yml
 copy yang di bawah ke dalam gifnoc.yml
 
 server:
